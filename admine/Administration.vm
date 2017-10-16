@@ -1,0 +1,230 @@
+##添加配送员
+#set($layout="/admin/layout/matrix.vm")
+<style>
+    .table-order tr,.table-order td{vertical-align: middle}
+    .cityareas label{float: left;margin-right: 10px;}
+    .cityareas .checkAll{width: 100%;text-align: left;}
+</style>
+<script type="text/javascript">
+    Matrix.Nav({"menu": 305, "cmenu": 307});
+</script>
+<script type="text/javascript" src="$!{request.getContextPath()}/res/js/prvCityArea.js"></script>
+
+    <div id="content-header">
+        <h1>服务范围管理  $!{serviceType}</h1>
+    </div>
+
+    <div class="container-fluid">
+        <hr>
+        <div class="row-fluid">
+            <div class="span12">
+                <div class="widget-box">
+                    <div class="widget-title"> <span class="icon"> <i class="icon-align-justify"></i> </span>
+                        <h5>当前服务范围</h5>
+                    </div>
+
+                    <div class="widget-content">
+                        <div class="widget-box widget-tabs-box">
+                            <ul class="nav nav-tabs">
+                                <li #if($!serviceType == 3) class="active" #end >
+                                    <a href="$!{request.getContextPath()}/dss/suport/index.do?serviceType=3">上门送货</a>
+                                </li>
+                                <li #if($!serviceType == 4) class="active" #end>
+                                    <a href="$!{request.getContextPath()}/dss/suport/index.do?serviceType=4">上门退货</a>
+                                </li>
+                            </ul>
+                            <div class="widget-content nopadding">
+                                <form class="form-horizontal form-horizontal-inline" method="get" id="frm" action="$!{request.getContextPath()}/">
+                                    <div class="row-fluid">
+                                        <div class="control-group">
+                                            <label class="control-label">可服务城市：</label>
+                                            <div class="controls">
+                                                <select id="prv" class="span4" onchange="showCity(this.value)" name="" >
+                                                    <option value="">全部</option>
+                                                </select>
+                                                <select id="city" class="span4" onchange="showArea(this.value)" name="" >
+                                                    <option value="">全部</option>
+                                                </select>
+                                                &nbsp;<button class="btn btn-success" type="button" id="next">添加</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="widget-content tab-content">
+                                <table class="table table-hover with-check table-text-center table-order">
+                                    <thead>
+                                        <th style="width: 150px;">省/直辖市/自治区</th>
+                                        <th>市/州</th>
+                                        <th>区域</th>
+                                        <th>操作</th>
+                                    </thead>
+                                    <tbody>
+                                        #foreach($item in $!{data})
+                                            #foreach($items in $!{item.cities})
+                                                <tr class='order-bd' data-pro-spsId='$!{item.spsId}'  data-pro-id='$!{item.prvId}' data-pro-name='$!{item.prvName}'>
+                                                    <td>$!{item.prvName}</td>
+                                                    <td data-pro-scsId='$!{items.scsId}' data-city-id="$!{items.cityId}">$!{items.cityName}</td>
+                                                    <td class="cityareas">
+                                                        <label class="checkAll"><input type='checkbox'/>全选</label>
+                                                        #foreach($itemss in $!{items.cityAreaes})
+                                                            <label ><input data-pro-scasId='$!{itemss.scasId}' type='checkbox' value='$!{itemss.cityAreaId}' />$!{itemss.cityAreaName}</label>
+                                                        #end
+                                                    </td>
+                                                    <td><a href="#" class="dele">删除</a></td>
+                                                </tr>
+                                            #end
+                                        #end
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+<script>
+    /*合并单元格*/
+    $.fn.rowspan = function (opt) {
+        var defaults = {td: 1};
+        var options = $.extend(defaults, opt);
+        return this.each(function () {
+            var tds = $(this).find("tbody td:nth-child(" + options.td + ")");
+            var current_td = tds.eq(0);
+            var k = 1;
+            tds.each(function (index, element) {
+                if ($(this).text() == current_td.text() && index != 0) {
+                    k++;
+                    $(this).remove();
+                    current_td.attr("rowspan", k);
+                    current_td.css("vertical-align", "middle");
+                } else {
+                    current_td = $(this);
+                    k = 1;
+                }
+            });
+        });
+    };
+    getPrv(); //省
+
+    //$('table').rowspan();
+
+    //vm数据
+    var vm = {
+        serviceType: $!{serviceType}
+    };
+
+
+    //添加
+    $("#next").on('click',function () {
+        var proName=$('#prv').find("option:selected").text(), proId = $('#prv').val();
+        var cityName=$('#city').find("option:selected").text(), cityId = $('#city').val();
+        //检验一下省市有没有选择
+        if(!cityId) {
+            return Toast.show('请选择市！');
+        }
+        if($('[data-city-id="'+ cityId +'"]')[0]){
+            return Toast.show('表格中已存在' + cityName + '的配置，不可重复添加！')
+        }
+
+        var trHtml= ["<tr class='order-bd' data-pro-id='"+ proId +"' data-pro-name= '"+proName+"'><td>"+proName+"</td><td data-city-id="+cityId+" >"+cityName+"</td><td class='cityareas' style='width: 60%;'>"];
+
+        Matrix.JSON({
+            type: "POST",
+            url: root + "/activity/showArea.do",
+            val: {"cityId": cityId},
+            fun: function(res){
+                var arr=["<label class='checkAll'><input type='checkbox'/>全选</label>"];
+                $.each(res, function(i, n) {
+                    arr.push("<label ><input type='checkbox'  value='"+n.cityAreaNumId+"'/>" + n.cityAreaName + "</label> ");
+                });
+                trHtml.push(arr.join(''));
+                trHtml.push('<td ><a href="#" class="dele">删除</a></td></tr>');
+
+                if($('[data-pro-id="'+ proId +'"]')[0]){
+                      $(trHtml.join('')).insertAfter($('[data-pro-id="'+ proId +'"]')[0]);
+                }else{
+                    $(trHtml.join('')).appendTo($('tbody'));
+                }
+
+                //$('table').rowspan();
+
+            }
+        });
+    });
+
+    //删除,全部取消选择
+    $(document.body).on('click',".dele",function(){
+        var $this = $(this), $tr_pro = $this.closest('tr');
+        $tr_pro.find('.cityareas :checkbox').prop('checked', false);
+    });
+
+    //选择checkbox
+    $(document.body).on('change', '.cityareas :checkbox', function () {
+        var $this = $(this), $tr_pro = $this.closest('tr');
+        if($this.closest('.checkAll')[0]){
+            //全选或全部取消选择
+            var $label = $this.parent(), isChecked = $label.find('input').prop("checked");
+            $label.siblings().find('input').prop('checked', isChecked);
+        }
+        saveFormData($tr_pro);
+    });
+
+    //删除·提交
+    $(document.body).on('click','.dele', function () {
+        var $this = $(this), $tr_pro = $this.closest('tr');
+        saveFormData($tr_pro);
+    });
+
+    //保存表单数据
+    function saveFormData($tr_pro, option) {
+        var $td_city = $tr_pro.find('td[data-city-id]'),
+            $td_area_checkbox = $tr_pro.find('.cityareas label').not('.checkAll').find(':checkbox');
+
+        var formData={
+            "prvId":$tr_pro.data('pro-id'),
+            "prvName":$tr_pro.data('pro-name'),
+            "serviceType":vm.serviceType,
+            "status": true,
+            "spsId": $tr_pro.data('pro-spsId'),
+            "cities": [
+                {
+                    "cityAreaes": [],
+                    "cityId":$td_city.data('city-id'),
+                    "cityName":$td_city.text(),
+                    "serviceType": vm.serviceType,
+                    "status": true,
+                    "scsId": $td_city.data('pro-scsId'),
+                }
+            ]
+        };
+
+        $.each($td_area_checkbox,function (i, v) {
+            var $checkbox = $(this);
+            formData.cities[0].cityAreaes.push({
+                "cityAreaId":$checkbox.val(),
+                "cityAreaName":$checkbox.parent().text(),
+                "serviceType": vm.serviceType,
+                "status": $checkbox.prop('checked'),
+                "scasId":$checkbox.data('pro-scasId'),
+            });
+        });
+
+        console.info(JSON.stringify(formData));
+
+        Matrix.JSON({
+            type: "POST",
+            url: root + "/dss/suport/save.do",
+            val: {jsonData: JSON.stringify(formData)},
+            fun: function(res){
+                alert ("提交成功")
+            }
+        });
+    }
+
+</script>
